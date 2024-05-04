@@ -7,6 +7,7 @@ require (
 	github.com/paulmach/orb v0.11.1
 	github.com/ringsaturn/polyf v0.2.0
 	github.com/tidwall/geojson v1.4.5
+	github.com/tidwall/rtree v1.10.0
 	go.uber.org/zap v1.27.0
 )
 
@@ -19,7 +20,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/segmentio/encoding v0.3.6 // indirect
 	github.com/tidwall/geoindex v1.7.0 // indirect
-	github.com/tidwall/rtree v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 )
