@@ -68,8 +68,6 @@ func loadLocalityAreaAsPolyfItem(fp string) ([]*polyf.Item[overturemaps.Locality
 
 	res := make([]*polyf.Item[overturemaps.LocalityAreaRowProperties], 0)
 
-	typeCounter := map[string]int{}
-
 	for _, row := range rows {
 		geometry, err := wkb.Unmarshal(row.Geometry)
 		if err != nil {
@@ -79,38 +77,20 @@ func loadLocalityAreaAsPolyfItem(fp string) ([]*polyf.Item[overturemaps.Locality
 		switch g := geometry.(type) {
 		case orb.MultiPolygon:
 			polys := convertMultiPolygon(g)
-
 			for _, poly := range polys {
 				res = append(res, &polyf.Item[overturemaps.LocalityAreaRowProperties]{
 					V:    *newV,
 					Poly: poly,
 				})
 			}
-			t := fmt.Sprintf("%T", g)
-			if _, ok := typeCounter[t]; !ok {
-				typeCounter[t] = 0
-			}
-			typeCounter[t]++
 		case orb.Polygon:
 			poly := convertPolygon(g)
 			res = append(res, &polyf.Item[overturemaps.LocalityAreaRowProperties]{
 				V:    *newV,
 				Poly: poly,
 			})
-			t := fmt.Sprintf("%T", g)
-			if _, ok := typeCounter[t]; !ok {
-				typeCounter[t] = 0
-			}
-			typeCounter[t]++
-		default:
-			t := fmt.Sprintf("%T", g)
-			if _, ok := typeCounter[t]; !ok {
-				typeCounter[t] = 0
-			}
-			typeCounter[t]++
 		}
 	}
-	logger.Debug("loadLocalityAreaAsPolyfItem", zap.Int("len", len(res)), zap.Any("typeCounter", typeCounter))
 	return res, nil
 }
 
@@ -200,8 +180,12 @@ func setupLocalityFinder(dir string) (*LocalityFinder, error) {
 		Tr: tr,
 		M:  m,
 	}, nil
-
 }
+
+// type Request struct {
+// 	Lng float64 `query:"lng"`
+// 	Lat float64 `query:"lat"`
+// }
 
 func main() {
 	dir := "themes-2024M04/type=locality_area"
@@ -238,6 +222,7 @@ func main() {
 			return true
 		},
 	)
+
 	fmt.Println("done")
 	time.Sleep(time.Minute)
 }
