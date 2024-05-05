@@ -15,3 +15,7 @@ aws s3 cp --recursive --region us-west-2 --no-sign-request s3://overturemaps-us-
 # Require 16GB RAM
 go run demo/main.go
 ```
+
+TODO:
+
+- [ ] Join properties from `locality` to `locality_area`
