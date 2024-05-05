@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,8 +21,6 @@ import (
 	"github.com/tidwall/geojson/geometry"
 	"github.com/tidwall/rtree"
 	"go.uber.org/zap"
-
-	_ "net/http/pprof"
 )
 
 var logger *zap.Logger = func() *zap.Logger {
