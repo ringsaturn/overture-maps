@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/encoding/wkb"
 	overturemaps "github.com/ringsaturn/overture-maps"
@@ -16,6 +20,8 @@ import (
 	"github.com/tidwall/geojson/geometry"
 	"github.com/tidwall/rtree"
 	"go.uber.org/zap"
+
+	_ "net/http/pprof"
 )
 
 var logger *zap.Logger = func() *zap.Logger {
@@ -182,10 +188,10 @@ func setupLocalityFinder(dir string) (*LocalityFinder, error) {
 	}, nil
 }
 
-// type Request struct {
-// 	Lng float64 `query:"lng"`
-// 	Lat float64 `query:"lat"`
-// }
+type Request struct {
+	Lng float64 `query:"lng"`
+	Lat float64 `query:"lat"`
+}
 
 func main() {
 	dir := "themes-2024M04/type=locality_area"
@@ -223,6 +229,36 @@ func main() {
 		},
 	)
 
-	fmt.Println("done")
-	time.Sleep(time.Minute)
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	h := server.New(
+		server.WithHostPorts("localhost:5070"),
+	)
+	h.GET("/reverse", func(c context.Context, ctx *app.RequestContext) {
+		req := &Request{}
+		if err := ctx.Bind(req); err != nil {
+			ctx.String(http.StatusBadRequest, err.Error())
+			return
+		}
+
+		res, err := finder.FindAll(req.Lng, req.Lat)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		result := make([]*overturemaps.LocalityRowProperties, 0)
+		for _, r := range res {
+			if p, ok := localityFinder.M[r.LocalityID]; ok {
+				result = append(result, p)
+			}
+		}
+		ctx.JSON(http.StatusOK, result)
+	})
+
+	_ = h.Run()
+
+	// fmt.Println("done")
+	// time.Sleep(time.Minute)
 }

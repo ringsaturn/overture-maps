@@ -19,3 +19,12 @@ go run demo/main.go
 TODO:
 
 - [ ] Join properties from `locality` to `locality_area`
+
+---
+
+```bash
+curl "http://localhost:5070/reverse?lng=139.8094&lat=35.6658"
+```
+
+Sample response:
+<https://gist.github.com/ringsaturn/242658d7a74522b8d75ad75c879b6279>
