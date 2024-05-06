@@ -19,10 +19,11 @@ type LocalityAreaRow struct {
 }
 
 type LocalityAreaRowProperties struct {
-	ID         string         `json:"id"`
-	BBox       BBox           `json:"bbox"`
-	LocalityID string         `json:"locality_id"`
-	Base       OvertureCommon `json:"base"`
+	ID            string         `json:"id"`
+	BBox          BBox           `json:"bbox"`
+	LocalityID    string         `json:"locality_id"`
+	Base          OvertureCommon `json:"base"`
+	GeoJSONCoords [][][]float64  `json:"geojson_coords"`
 }
 
 func (row *LocalityAreaRow) ToProperties() *LocalityAreaRowProperties {

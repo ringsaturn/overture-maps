@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"embed"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -11,17 +13,55 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/common/utils"
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/encoding/wkb"
 	overturemaps "github.com/ringsaturn/overture-maps"
 	"github.com/ringsaturn/polyf"
+	"github.com/ringsaturn/polyf/integration/featurecollection"
 	"github.com/tidwall/geojson/geometry"
 	"github.com/tidwall/rtree"
 	"go.uber.org/zap"
 )
+
+//go:embed template/*
+var f embed.FS
+
+// country
+// county
+// state
+// region
+// province
+// district
+// city
+// town
+// village
+// hamlet
+// borough
+// suburb
+// neighborhood
+// municipality
+
+var localityTypeOrder map[string]int = map[string]int{
+	"country":      0,
+	"county":       1,
+	"state":        2,
+	"region":       3,
+	"province":     4,
+	"district":     5,
+	"city":         6,
+	"town":         7,
+	"village":      8,
+	"hamlet":       9,
+	"borough":      10,
+	"suburb":       11,
+	"neighborhood": 12,
+	"municipality": 13,
+}
 
 var logger *zap.Logger = func() *zap.Logger {
 	l, err := zap.NewDevelopment()
@@ -60,6 +100,8 @@ func convertMultiPolygon(rawMulti orb.MultiPolygon) []*geometry.Poly {
 	return polys
 }
 
+var localityIDToOrbMultiPolygon map[string]orb.MultiPolygon = map[string]orb.MultiPolygon{}
+
 func loadLocalityAreaAsPolyfItem(fp string) ([]*polyf.Item[overturemaps.LocalityAreaRowProperties], error) {
 	logger.Debug("loadLocalityAreaAsPolyfItem", zap.String("fp", fp))
 	f, err := os.ReadFile(fp)
@@ -88,12 +130,14 @@ func loadLocalityAreaAsPolyfItem(fp string) ([]*polyf.Item[overturemaps.Locality
 					Poly: poly,
 				})
 			}
+			localityIDToOrbMultiPolygon[newV.LocalityID] = g
 		case orb.Polygon:
 			poly := convertPolygon(g)
 			res = append(res, &polyf.Item[overturemaps.LocalityAreaRowProperties]{
 				V:    *newV,
 				Poly: poly,
 			})
+			localityIDToOrbMultiPolygon[newV.LocalityID] = orb.MultiPolygon{g}
 		}
 	}
 	return res, nil
@@ -188,8 +232,10 @@ func setupLocalityFinder(dir string) (*LocalityFinder, error) {
 }
 
 type Request struct {
-	Lng float64 `query:"lng"`
-	Lat float64 `query:"lat"`
+	Lng       float64 `query:"lng"`
+	Lat       float64 `query:"lat"`
+	Debug     bool    `query:"debug"`
+	DebugFull bool    `query:"debug_full"`
 }
 
 func main() {
@@ -235,28 +281,93 @@ func main() {
 	h := server.New(
 		server.WithHostPorts("localhost:5070"),
 	)
+	h.SetHTMLTemplate(template.Must(template.New("").ParseFS(f, "template/*.html")))
 	h.GET("/reverse", func(c context.Context, ctx *app.RequestContext) {
 		req := &Request{}
 		if err := ctx.Bind(req); err != nil {
 			ctx.String(http.StatusBadRequest, err.Error())
 			return
 		}
-
-		res, err := finder.FindAll(req.Lng, req.Lat)
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
+		if !req.Debug {
+			res, err := finder.FindAll(req.Lng, req.Lat)
+			if err != nil {
+				ctx.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+			result := make([]*overturemaps.LocalityRowProperties, 0)
+			for _, r := range res {
+				if p, ok := localityFinder.M[r.LocalityID]; ok {
+					result = append(result, p)
+				}
+			}
+			sort.Slice(result, func(i, j int) bool {
+				if localityTypeOrder[result[i].LocalityType] < localityTypeOrder[result[j].LocalityType] {
+					return true
+				}
+				return localityTypeOrder[result[i].ContextID] == localityTypeOrder[result[j].ID]
+			})
+			ctx.JSON(http.StatusOK, result)
 			return
 		}
-		result := make([]*overturemaps.LocalityRowProperties, 0)
-		for _, r := range res {
-			if p, ok := localityFinder.M[r.LocalityID]; ok {
-				result = append(result, p)
+
+		boundary := &featurecollection.BoundaryFile[*overturemaps.LocalityRowProperties]{
+			Features: make([]*featurecollection.Feature[*overturemaps.LocalityRowProperties], 0),
+		}
+		point := geometry.Point{
+			X: req.Lng,
+			Y: req.Lat,
+		}
+		for _, item := range finder.Items {
+			if item.Poly.ContainsPoint(point) {
+				if p, ok := localityFinder.M[item.V.LocalityID]; ok {
+					boundary.Features = append(boundary.Features, &featurecollection.Feature[*overturemaps.LocalityRowProperties]{
+						Properties: p,
+						Type:       "Feature",
+						Geometry: struct {
+							Coordinates interface{} "json:\"coordinates\""
+							Type        string      "json:\"type\""
+						}{
+							Type:        "MultiPolygon",
+							Coordinates: localityIDToOrbMultiPolygon[item.V.LocalityID],
+						},
+					})
+				}
 			}
 		}
-		ctx.JSON(http.StatusOK, result)
+
+		sort.Slice(boundary.Features, func(i, j int) bool {
+			// return localityTypeOrder[boundary.Features[i].Properties.LocalityType] < localityTypeOrder[boundary.Features[j].Properties.LocalityType]
+			if localityTypeOrder[boundary.Features[i].Properties.LocalityType] < localityTypeOrder[boundary.Features[j].Properties.LocalityType] {
+				return true
+			}
+			return localityTypeOrder[boundary.Features[i].Properties.ContextID] != localityTypeOrder[boundary.Features[j].Properties.ID]
+		})
+
+		if !req.DebugFull {
+			// keep the latest one
+			if len(boundary.Features) > 1 {
+				boundary.Features = boundary.Features[len(boundary.Features)-1:]
+			}
+		}
+
+		ctx.JSON(http.StatusOK, utils.H{
+			"type":     "FeatureCollection",
+			"features": boundary.Features,
+		})
+	})
+
+	h.GET("/", func(c context.Context, ctx *app.RequestContext) {
+		ctx.HTML(http.StatusOK, "index.html", nil)
 	})
 
 	_ = h.Run()
+
+	// // idx := 0
+	// for _, value := range localityIDToOrbMultiPolygon {
+	// 	b, _ := json.Marshal(value)
+	// 	fmt.Println(string(b))
+	// 	break
+	// }
 
 	// fmt.Println("done")
 	// time.Sleep(time.Minute)

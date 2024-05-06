@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OvertureMaps Geo Reverse Clickable Debugger</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html,
+    body,
+    #map {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <span id="mousecoord" style="
+        display: block;
+        position: absolute;
+        right: 0;
+        top: 0;
+        z-index: 9999;
+        background-color: white;
+      "></span>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/axios@1.5.0/dist/axios.min.js"></script>
+  <script>
+    var southWest = L.latLng(-90, -180);
+    var northEast = L.latLng(90, 180);
+    var bounds = L.latLngBounds(southWest, northEast);
+    var map = L.map("map", {
+      maxBounds: bounds,
+      maxBoundsViscosity: 1,
+      worldCopyJump: true,
+      maxZoom: 18,
+      minZoom: 3,
+      cursor: true,
+    }).setView([40.7128, -74.006], 5);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution:
+        'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+    }).addTo(map);
+
+    var markers = [];
+    var polygons = [];
+
+    map.on("mousemove", function (e) {
+      var lng = e.latlng.wrap().lng.toFixed(4);
+      var lat = e.latlng.wrap().lat.toFixed(4);
+      document.getElementById(
+        "mousecoord"
+      ).innerHTML = `Lat: ${lat} Lng: ${lng}`;
+    });
+
+    map.on("click", function (e) {
+      var lng = e.latlng.wrap().lng.toFixed(4);
+      var lat = e.latlng.wrap().lat.toFixed(4);
+
+      axios
+        .get("/reverse", {
+          params: {
+            lng: lng,
+            lat: lat,
+            debug: false,
+          },
+        })
+        .then(function (response) {
+
+          // [{ "id": "085e15447fffffff0135dacdd0c9dfea", "bbox": { "XMin": 139.23941, "YMin": 36.57484, "XMax": 139.23944, "YMax": 36.574844 }, "admin_level": 1, "geopol_display": "", "subtype": "administrative_locality", "locality_type": "country", "wikidata": "Q17", "context_id": "", "population": 127360000, "iso_country_code_alpha_2": "JP", "iso_sub_country_code": "", "default_language": "ja", "driving_side": "left", "names": { "Primary": "Japan", "Common": { "af": "Japan", "am": "ጃፓን", "ar": "اليابان", "as": "জাপান", "az": "Yaponiya", "be": "Японія", "bg": "Япония", "bn": "জাপান", "bo": "རི་པིན།", "bs": "Japan", "ca": "Japó", "cs": "Japonsko", "cy": "Japan", "da": "Japan", "de": "Japan", "el": "Ιαπωνία", "en": "Japan", "es": "Japón", "et": "Jaapan", "eu": "Japonia", "fa": "ژاپن", "fi": "Japani", "fo": "Japan", "fr": "Japon", "fy": "Japan", "ga": "An tSeapáin", "gd": "An t-Seapan", "gl": "Xapón", "gu": "જાપાન", "ha": "Japan", "he": "יפן", "hi": "जापान", "hr": "Japan", "hu": "Japán", "hy": "Ճապոնիա", "id": "Jepang", "is": "Japan", "it": "Giappone", "iu": "ᓃᑉᐊᓐ", "ja": "日本", "ka": "იაპონია", "kk": "Жапония", "km": "ជប៉ុន", "kn": "ಜಪಾನ್", "ko": "일본", "ku": "Japon", "ky": "Жапония", "lb": "Japan", "lo": "ປະເທດຍີ່ປຸ່ນ", "lt": "Japonija", "lv": "Japāna", "mi": "Hapani", "mk": "Јапонија", "ml": "ജപ്പാൻ", "mn": "Япон", "mr": "जपान", "ms": "Jepun", "mt": "Ġappun", "nb": "Japan", "ne": "जापान", "nl": "Japan", "nn": "Japan", "no": "Japan", "nso": "Japane", "or": "ଜାପାନ", "pa": "ਜਪਾਨ", "pl": "Japonia", "ps": "جاپان", "pt": "Japão", "pt-BR": "Japão", "pt-PT": "Japão", "rm": "Giapun", "ro": "Japonia", "ru": "Япония", "rw": "Ubuyapani", "sa": "सूर्यमूल", "sd": "جاپان", "se": "Japána", "si": "ජපානය", "sk": "Japonsko", "sl": "Japonska", "sq": "Japonia", "sr-Cyrl": "Јапан", "sr-Latn": "Japan", "sv": "Japan", "sw": "Japani", "ta": "ஜப்பான்", "te": "జపాన్", "tg": "Жопун", "th": "ประเทศญี่ปุ่น", "ti": "ጃፓን", "tk": "Ýaponiýa", "tr": "Japonya", "tt": "Япония", "ug": "ياپونىيە", "uk": "Японія", "ur": "جاپان", "uz": "Yaponiya", "vi": "Nhật Bản", "wo": "Sapoŋ", "yo": "Japan", "zh": "日本", "zh-HanS": "日本", "zh-HanT": "日本", "zu": "IJapani" }, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:08:50Z", "Sources": [] } }, { "id": "085e8017bfffffff01285f93de65c3ef", "bbox": { "XMin": 139.8162, "YMin": 35.665188, "XMax": 139.81621, "YMax": 35.665195 }, "admin_level": 3, "geopol_display": "", "subtype": "administrative_locality", "locality_type": "county", "wikidata": "", "context_id": "085e822abfffffff01117c48fc486463", "population": 0, "iso_country_code_alpha_2": "JP", "iso_sub_country_code": "", "default_language": "", "driving_side": "", "names": { "Primary": "Koto", "Common": {}, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:14:49Z", "Sources": [] } }, { "id": "085e822abfffffff01117c48fc486463", "bbox": { "XMin": 139.70363, "YMin": 35.69376, "XMax": 139.70364, "YMax": 35.693764 }, "admin_level": 2, "geopol_display": "", "subtype": "administrative_locality", "locality_type": "state", "wikidata": "Q1490", "context_id": "085e15447fffffff0135dacdd0c9dfea", "population": 0, "iso_country_code_alpha_2": "JP", "iso_sub_country_code": "JP-13", "default_language": "", "driving_side": "", "names": { "Primary": "Tokyo", "Common": { "ar": "طوكيو", "be": "Токіа", "bg": "Токио", "bs": "Tokio", "ca": "Tokyo", "cs": "Tokio", "da": "Tokyo", "de": "Tokio", "el": "Τόκιο", "en": "Tokyo", "es": "Tokio", "et": "Tokyo", "fi": "Tokio", "fr": "Tokyo", "he": "טוקיו", "hr": "Tokio", "hu": "Tokió", "id": "Tokyo", "it": "Tokyo", "ja": "東京都", "ko": "도쿄도", "lt": "Tokijas", "lv": "Tokija", "mi": "Tōkio", "nb": "Tokyo", "nl": "Tokio", "no": "Tokyo", "pl": "Tokio", "pt": "Tóquio", "pt-BR": "Tóquio", "pt-PT": "Tóquio", "ro": "Tokyo", "ru": "Токио", "sk": "Tokio", "sl": "Tokio", "sr-Latn": "Tokio", "sv": "Tokyo", "th": "โตเกียว", "tr": "Tokyo", "uk": "Токіо", "vi": "Tokyo", "zh": "东京都", "zh-HanS": "东京都", "zh-HanT": "東京都" }, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:08:52Z", "Sources": [] } }, { "id": "085e80387fffffff01ca183b54d7ee9c", "bbox": { "XMin": 139.81696, "YMin": 35.67277, "XMax": 139.81699, "YMax": 35.672775 }, "admin_level": 0, "geopol_display": "", "subtype": "named_locality", "locality_type": "city", "wikidata": "Q215175", "context_id": "085e822abfffffff01117c48fc486463", "population": 524310, "iso_country_code_alpha_2": "", "iso_sub_country_code": "", "default_language": "", "driving_side": "", "names": { "Primary": "Koto", "Common": { "ar": "كوتو، طوكيو", "bg": "Кото", "bs": "Koto", "ca": "Koto", "cs": "Koto", "da": "Koto", "de": "Kōtō", "el": "Κότο", "en": "Koto", "es": "Koto", "et": "Koto", "eu": "Koto", "fi": "Koto", "fr": "Kōtō", "he": "קוטו", "hr": "Koto", "hu": "Koto", "id": "Koto", "it": "Koto", "ja": "江東区", "ko": "고토구", "lt": "Kotas", "lv": "Koto", "nb": "Koto", "nl": "Koto", "no": "Koto", "pl": "Kōtō", "pt": "Koto", "pt-BR": "Koto", "pt-PT": "Koto", "ro": "Koto", "ru": "Кото", "sk": "Koto", "sl": "Koto", "sr-Latn": "Koto", "sv": "Koto", "th": "เขตโคโต", "tr": "Koto", "uk": "Кото", "vi": "Koto", "zh": "江東區", "zh-HanS": "江东区", "zh-HanT": "江東區" }, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:08:49Z", "Sources": [] } }, { "id": "085e8014ffffffff011a50bd12d67386", "bbox": { "XMin": 139.81093, "YMin": 35.666832, "XMax": 139.81094, "YMax": 35.666836 }, "admin_level": 0, "geopol_display": "", "subtype": "named_locality", "locality_type": "neighborhood", "wikidata": "", "context_id": "085e80387fffffff01ca183b54d7ee9c", "population": 0, "iso_country_code_alpha_2": "", "iso_sub_country_code": "", "default_language": "", "driving_side": "", "names": { "Primary": "Toyo 1", "Common": { "en": "Toyo 1", "ja": "東陽一丁目" }, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:09:52Z", "Sources": [] } }, { "id": "085e8014bfffffff01b701b5aadd32fe", "bbox": { "XMin": 139.81444, "YMin": 35.67056, "XMax": 139.81445, "YMax": 35.670563 }, "admin_level": 0, "geopol_display": "", "subtype": "named_locality", "locality_type": "neighborhood", "wikidata": "Q11528671", "context_id": "085e80387fffffff01ca183b54d7ee9c", "population": 0, "iso_country_code_alpha_2": "", "iso_sub_country_code": "", "default_language": "", "driving_side": "", "names": { "Primary": "Toyo", "Common": { "en": "Toyo", "ja": "東陽" }, "Rules": [] }, "base": { "Theme": "", "Type": "", "Version": 0, "UpdateTime": "2024-04-10T05:08:51Z", "Sources": [] } }]
+
+          var name = ""
+          for (var i = 0; i < response.data.length; i++) {
+            name = name + " " + response.data[i].names.Primary;
+          }
+          var popupContent = `
+            <b>name:</b> ${name}<br>
+          `;
+
+          var marker = L.marker(e.latlng).addTo(map);
+          marker.bindPopup(popupContent).openPopup();
+          markers.push(marker);
+        })
+        .catch(function (error) {
+          console.error(error);
+        });
+
+      axios
+        .get("/reverse", {
+          params: {
+            lng: lng,
+            lat: lat,
+            debug: true,
+          },
+        })
+        .then(function (response) {
+          // var tzid = response.data.properties.tzid;
+          // if (!isPolygonAdded(tzid)) {
+          var plotData = response.data;
+          var geojson = L.geoJSON(plotData).addTo(map);
+          // polygons.push({ tzid: tzid, geojson: geojson });
+          // }
+        })
+        .catch(function (error) {
+          console.error(error);
+        });
+    });
+
+    // function isPolygonAdded(tzid) {
+    //   for (var i = 0; i < polygons.length; i++) {
+    //     if (polygons[i].tzid === tzid) {
+    //       return true;
+    //     }
+    //   }
+    //   return false;
+    // }
+  </script>
+</body>
+
+</html>
